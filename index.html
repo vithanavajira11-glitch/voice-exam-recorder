@@ -1,0 +1,284 @@
+මෙය ඔබ ඉල්ලූ වෙනම Recorder.html පිටුවේ කේතයයි.
+
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Voice Exam Recorder</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f5f9;
+      color: #202b3c;
+      padding: 20px;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 20px auto;
+      padding: 24px;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 4px 18px #00000012;
+    }
+
+    h1 { color: #174a80; text-align: center; }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      background: #1769aa;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .stop { background: #c62828; }
+    .send { background: #168447; }
+
+    audio { width: 100%; margin-top: 14px; }
+
+    #status {
+      margin-top: 16px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      padding: 12px;
+      border-radius: 8px;
+      background: #f8fafc;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>Voice Exam Recorder</h1>
+
+    <p class="note">
+      මයික්‍රෆෝනයට අවසර දෙන්න. පිළිතුර පටිගත කර,
+      අවසානයේ එය මුල් Voice Exam App එකට යවන්න.
+    </p>
+
+    <button id="startBtn" onclick="startRecording()">
+      පටිගත කිරීම ආරම්භ කරන්න
+    </button>
+
+    <button id="stopBtn" class="stop"
+      onclick="stopRecording()" disabled>
+      පටිගත කිරීම නවත්වන්න
+    </button>
+
+    <audio id="preview" controls hidden></audio>
+
+    <button id="sendBtn" class="send"
+      onclick="sendToApp()" disabled>
+      මුල් App එකට යවන්න
+    </button>
+
+    <div id="status" role="status" aria-live="polite">
+      පටිගත කිරීම ආරම්භ කිරීමට සූදානම්.
+    </div>
+  </main>
+
+  <script>
+    let stream = null;
+    let recorder = null;
+    let chunks = [];
+    let recordedBlob = null;
+    let recordedDataUrl = null;
+    let recording = false;
+
+    const MAX_BYTES = 8 * 1024 * 1024;
+
+    function status(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function cleanupStream() {
+      if (stream) {
+        stream.getTracks().forEach(function(track) {
+          track.stop();
+        });
+        stream = null;
+      }
+    }
+
+    async function startRecording() {
+      if (recording) return;
+
+      try {
+        if (!navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia ||
+            !window.MediaRecorder) {
+          throw new Error(
+            "මෙම browser එකේ recording පහසුකම නොමැත. " +
+            "HTTPS හරහා Chrome භාවිත කරන්න."
+          );
+        }
+
+        if (!window.opener || window.opener.closed) {
+          throw new Error(
+            "මුල් Voice Exam App ටැබ් එක විවෘතව තබන්න. " +
+            "ඉන්පසු App එකෙන් Recorder එක නැවත විවෘත කරන්න."
+          );
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true
+        });
+
+        let options = {};
+
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          options.mimeType = "audio/webm;codecs=opus";
+        } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+          options.mimeType = "audio/webm";
+        }
+
+        chunks = [];
+        recordedBlob = null;
+        recordedDataUrl = null;
+
+        const preview = document.getElementById("preview");
+        preview.removeAttribute("src");
+        preview.hidden = true;
+
+        document.getElementById("sendBtn").disabled = true;
+
+        recorder = new MediaRecorder(stream, options);
+
+        recorder.ondataavailable = function(event) {
+          if (event.data && event.data.size > 0) {
+            chunks.push(event.data);
+          }
+        };
+
+        recorder.onerror = function() {
+          cleanupStream();
+          recording = false;
+          document.getElementById("startBtn").disabled = false;
+          document.getElementById("stopBtn").disabled = true;
+          status("පටිගත කිරීමේ දෝෂයක් ඇති වුණා.");
+        };
+
+        recorder.onstop = function() {
+          recordedBlob = new Blob(chunks, {
+            type: recorder.mimeType || "audio/webm"
+          });
+
+          cleanupStream();
+          recording = false;
+
+          document.getElementById("startBtn").disabled = false;
+          document.getElementById("stopBtn").disabled = true;
+
+          if (!recordedBlob.size) {
+            status("පටිගත කළ ශ්‍රව්‍යය හිස්. නැවත උත්සාහ කරන්න.");
+            return;
+          }
+
+          if (recordedBlob.size > MAX_BYTES) {
+            recordedBlob = null;
+            status("පටිගත කිරීම 8 MB ඉක්මවයි. කෙටි පිළිතුරක් පටිගත කරන්න.");
+            return;
+          }
+
+          const preview = document.getElementById("preview");
+          preview.src = URL.createObjectURL(recordedBlob);
+          preview.hidden = false;
+
+          document.getElementById("sendBtn").disabled = false;
+
+          status("පටිගත කිරීම අවසන්. අසා බලා මුල් App එකට යවන්න.");
+        };
+
+        recorder.start();
+        recording = true;
+
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").disabled = false;
+
+        status("පටිගත කරමින්... අවසන් වූ විට Stop ඔබන්න.");
+      } catch (error) {
+        cleanupStream();
+        recording = false;
+        document.getElementById("startBtn").disabled = false;
+        document.getElementById("stopBtn").disabled = true;
+
+        status("දෝෂයක් ඇති වුණා: " + error.message);
+      }
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state === "recording") {
+        document.getElementById("stopBtn").disabled = true;
+        recorder.stop();
+      }
+    }
+
+    function sendToApp() {
+      if (!recordedBlob || recordedBlob.size > MAX_BYTES) {
+        status("වලංගු පටිගත කිරීමක් නොමැත.");
+        return;
+      }
+
+      if (!window.opener || window.opener.closed) {
+        status("මුල් App එක වසා ඇත. එය නැවත විවෘත කරන්න.");
+        return;
+      }
+
+      document.getElementById("sendBtn").disabled = true;
+      status("පිළිතුර මුල් App එකට යවමින්...");
+
+      const reader = new FileReader();
+
+      reader.onload = function() {
+        recordedDataUrl = reader.result;
+
+        try {
+          // මුල් App එක ලැබෙන පණිවිඩයේ origin එක පරීක්ෂා කරයි.
+          window.opener.postMessage({
+            type: "VOICE_ANSWER",
+            dataUrl: recordedDataUrl
+          }, "*");
+
+          status(
+            "පිළිතුර යැවීමට ඉල්ලීම කළා. " +
+            "දැන් මුල් App ටැබ් එකට ගොස් පිළිතුර ලැබුණු බව තහවුරු කරන්න."
+          );
+        } catch (error) {
+          document.getElementById("sendBtn").disabled = false;
+          status("පිළිතුර යැවීමට නොහැකි වුණා: " + error.message);
+        }
+      };
+
+      reader.onerror = function() {
+        document.getElementById("sendBtn").disabled = false;
+        status("ශ්‍රව්‍ය ගොනුව කියවීමට නොහැකි වුණා.");
+      };
+
+      reader.readAsDataURL(recordedBlob);
+    }
+
+    window.addEventListener("beforeunload", cleanupStream);
+  </script>
+</body>
+</html>
