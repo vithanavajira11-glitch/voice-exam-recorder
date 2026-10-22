@@ -1,282 +1,392 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="si">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <title>Voice Exam Recorder</title>
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f2f5f9;
-      color: #202b3c;
-      padding: 20px;
-      margin: 0;
-    }
-
-    .container {
-      max-width: 520px;
-      margin: 20px auto;
-      padding: 24px;
-      border-radius: 14px;
-      background: white;
-      box-shadow: 0 4px 18px #00000012;
-    }
-
-    h1 { color: #174a80; text-align: center; }
-
-    button {
-      display: block;
-      width: 100%;
-      padding: 13px;
-      margin-top: 12px;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      background: #1769aa;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      background: #9ca3af;
-      cursor: not-allowed;
-    }
-
-    .stop { background: #c62828; }
-    .send { background: #168447; }
-
-    audio { width: 100%; margin-top: 14px; }
-
-    #status {
-      margin-top: 16px;
-      line-height: 1.6;
-      overflow-wrap: anywhere;
-    }
-
-    .note {
-      padding: 12px;
-      border-radius: 8px;
-      background: #f8fafc;
-      font-size: 14px;
-      line-height: 1.6;
-    }
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f2f5f9; color: #172033; font: 16px/1.5 Arial, sans-serif; }
+    main { width: min(720px, calc(100% - 24px)); margin: 24px auto; }
+    .card { background: white; border-radius: 18px; padding: 22px; box-shadow: 0 6px 24px #17203312; }
+    h1 { margin: 0 0 8px; font-size: 1.65rem; }
+    h2 { font-size: 1.15rem; margin: 0 0 12px; }
+    p { margin: 8px 0 14px; }
+    label { display: block; font-weight: 700; margin: 12px 0 5px; }
+    input, select { width: 100%; border: 1px solid #c8d0dc; border-radius: 10px; padding: 12px; font: inherit; background: white; }
+    button { border: 0; border-radius: 10px; padding: 12px 16px; font: inherit; font-weight: 700; cursor: pointer; background: #1459c7; color: white; }
+    button.secondary { background: #e8edf5; color: #172033; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 10px; background: #eef3fa; white-space: pre-wrap; }
+    .hidden { display: none !important; }
+    .consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; font-weight: 400; }
+    .consent input { width: auto; margin-top: 5px; }
+    progress { width: 100%; height: 12px; }
+    audio { width: 100%; margin-top: 12px; }
+    small { color: #5b6575; }
   </style>
 </head>
-
 <body>
-  <main class="container">
+<main>
+  <section class="card">
     <h1>Voice Exam Recorder</h1>
+    <p>ප්‍රශ්නවලට හඬින් පිළිතුරු ලබාදීම</p>
 
-    <p class="note">
-      මයික්‍රෆෝනයට අවසර දෙන්න. පිළිතුර පටිගත කර,
-      අවසානයේ එය මුල් Voice Exam App එකට යවන්න.
-    </p>
+    <section id="profile">
+      <h2>දරුවාගේ තොරතුරු</h2>
+      <label for="participantName">නම</label>
+      <input id="participantName" maxlength="100" autocomplete="name" required>
+      <label for="participantAge">වයස</label>
+      <input id="participantAge" type="number" min="3" max="100" required>
+      <label for="participantGender">ස්ත්‍රී/පුරුෂ භාවය</label>
+      <select id="participantGender" required>
+        <option value="">තෝරන්න</option>
+        <option value="ගැහැණු">ගැහැණු</option>
+        <option value="පිරිමි">පිරිමි</option>
+        <option value="වෙනත්">වෙනත් / සඳහන් කිරීමට කැමති නැත</option>
+      </select>
+      <label class="consent">
+        <input id="consent" type="checkbox">
+        <span>මම දෙමාපියෙක්/භාරකරුවෙක් හෝ අවශ්‍ය අවසරය ලබාගෙන ඇති අතර, හඬ පටිගත කර සුරැකීමට එකඟ වෙමි.</span>
+      </label>
+      <div class="actions">
+        <button id="startBtn" type="button">ආරම්භ කරන්න</button>
+      </div>
+    </section>
 
-    <button id="startBtn" onclick="startRecording()">
-      පටිගත කිරීම ආරම්භ කරන්න
-    </button>
+    <section id="exam" class="hidden">
+      <p><strong>ප්‍රශ්නය <span id="questionNumber">1</span> / 11</strong></p>
+      <progress id="progress" max="11" value="1"></progress>
+      <p id="instructions">ප්‍රශ්නය ලබාගනිමින්...</p>
+      <audio id="questionAudio" controls class="hidden"></audio>
+      <div class="actions">
+        <button id="playBtn" type="button" class="hidden">ප්‍රශ්නය අසන්න</button>
+        <button id="recordBtn" type="button" class="hidden">පටිගත කිරීම ආරම්භ කරන්න</button>
+        <button id="stopBtn" type="button" class="hidden">පටිගත කිරීම නවත්වන්න</button>
+      </div>
+      <audio id="answerPreview" controls class="hidden"></audio>
+      <div class="actions">
+        <button id="retryBtn" type="button" class="secondary hidden">නැවත පටිගත කරන්න</button>
+        <button id="saveBtn" type="button" class="hidden">පිළිතුර සුරකින්න</button>
+      </div>
+    </section>
 
-    <button id="stopBtn" class="stop"
-      onclick="stopRecording()" disabled>
-      පටිගත කිරීම නවත්වන්න
-    </button>
+    <section id="finished" class="hidden">
+      <h2>සියලු ප්‍රශ්න අවසන්!</h2>
+      <p>ප්‍රශ්න 11ටම පිළිතුරු සුරැකී ඇත. ස්තුතියි.</p>
+    </section>
 
-    <audio id="preview" controls hidden></audio>
+    <div id="status" class="status" role="status" aria-live="polite">ආරම්භ කිරීමට ඔබගේ තොරතුරු ඇතුළත් කරන්න.</div>
+    <small>මයික්‍රෆෝනය භාවිත කිරීමට Chrome අවසරය ඉල්ලූ විට Allow තෝරන්න.</small>
+  </section>
+</main>
 
-    <button id="sendBtn" class="send"
-      onclick="sendToApp()" disabled>
-      මුල් App එකට යවන්න
-    </button>
+<!-- Form POST avoids browser CORS restrictions when sending the recording to Apps Script. -->
+<iframe id="uploadFrame" name="uploadFrame" title="Upload response" class="hidden"></iframe>
+<form id="uploadForm" method="post" target="uploadFrame" class="hidden">
+  <input name="action" value="saveAnswer">
+  <input name="requestToken" id="requestToken">
+  <input name="participantName" id="formName">
+  <input name="participantAge" id="formAge">
+  <input name="participantGender" id="formGender">
+  <input name="participantId" id="formParticipantId">
+  <input name="questionNumber" id="formQuestionNumber">
+  <textarea name="dataUrl" id="formDataUrl"></textarea>
+</form>
 
-    <div id="status" role="status" aria-live="polite">
-      පටිගත කිරීම ආරම්භ කිරීමට සූදානම්.
-    </div>
-  </main>
+<script>
+(() => {
+  // Replace this placeholder with your deployed Apps Script Web App URL ending in /exec.
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz16tqoPOQEUuWl7YNHRxLPvaOrRn6vKSQVFJQ90K3ybvxlT_tlcad2qnKeaWw4Z900fQ/exec';
 
-  <script>
-    let stream = null;
-    let recorder = null;
-    let chunks = [];
-    let recordedBlob = null;
-    let recordedDataUrl = null;
-    let recording = false;
+  const $ = id => document.getElementById(id);
+  const statusBox = $('status');
+  const profile = $('profile');
+  const exam = $('exam');
+  const finished = $('finished');
+  const questionAudio = $('questionAudio');
+  const answerPreview = $('answerPreview');
 
-    const MAX_BYTES = 8 * 1024 * 1024;
+  let participant = null;
+  let participantId = '';
+  let questionNumber = 1;
+  let mediaRecorder = null;
+  let mediaStream = null;
+  let recordedChunks = [];
+  let answerBlob = null;
+  let requestToken = null;
+  let isSaving = false;
 
-    function status(message) {
-      document.getElementById("status").textContent = message;
+  function setStatus(message) { statusBox.textContent = message; }
+  function show(el, yes = true) { el.classList.toggle('hidden', !yes); }
+  function hideQuestionControls() {
+    ['playBtn','recordBtn','stopBtn','retryBtn','saveBtn'].forEach(id => show($(id), false));
+    show(answerPreview, false);
+  }
+  function validScriptUrl() {
+    return SCRIPT_URL.startsWith('https://script.google.com/macros/s/') &&
+           SCRIPT_URL.endsWith('/exec');
+  }
+
+  $('startBtn').addEventListener('click', async () => {
+    const name = $('participantName').value.trim();
+    const age = $('participantAge').value.trim();
+    const gender = $('participantGender').value;
+
+    if (!name || !age || !gender) {
+      setStatus('කරුණාකර නම, වයස සහ ස්ත්‍රී/පුරුෂ භාවය ඇතුළත් කරන්න.');
+      return;
+    }
+    if (!$('consent').checked) {
+      setStatus('ඉදිරියට යාමට දෙමාපිය/භාරකරුගේ අවසරය තහවුරු කරන්න.');
+      return;
+    }
+    if (!validScriptUrl()) {
+      setStatus('Apps Script URL එක තවම ඇතුළත් කර නැහැ. index.html හි SCRIPT_URL අගය /exec ලිපිනයෙන් වෙනස් කරන්න.');
+      return;
     }
 
-    function cleanupStream() {
-      if (stream) {
-        stream.getTracks().forEach(function(track) {
-          track.stop();
-        });
-        stream = null;
+    participant = { name, age, gender };
+    participantId = 'P' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
+    show(profile, false);
+    show(exam, true);
+    setStatus('මයික්‍රෆෝනය පරීක්ෂා කරමින්...');
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('මෙම බ්‍රවුසරයේ microphone API ලබාගත නොහැක. Chrome හි HTTPS GitHub Pages ලිපිනය භාවිත කරන්න.');
       }
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      await loadQuestion(1);
+    } catch (err) {
+      show(profile, true);
+      show(exam, false);
+      setStatus('මයික්‍රෆෝනය භාවිත කළ නොහැක: ' + (err && err.message ? err.message : err) +
+        '\\nChrome Site settings හි Microphone = Allow බවත් නිවැරදි input device එක තෝරා ඇති බවත් පරීක්ෂා කරන්න.');
+      if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
     }
+  });
 
-    async function startRecording() {
-      if (recording) return;
+  function loadQuestion(number) {
+    questionNumber = number;
+    $('questionNumber').textContent = String(number);
+    $('progress').value = number;
+    hideQuestionControls();
+    show(questionAudio, false);
+    $('instructions').textContent = 'ප්‍රශ්නය ' + number + ' ලබාගනිමින්...';
+    setStatus('ප්‍රශ්නය ' + number + ' ලබාගනිමින්...');
 
-      try {
-        if (!navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia ||
-            !window.MediaRecorder) {
-          throw new Error(
-            "මෙම browser එකේ recording පහසුකම නොමැත. " +
-            "HTTPS හරහා Chrome භාවිත කරන්න."
-          );
-        }
+    const callbackName = 'questionCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+    let settled = false;
 
-        if (!window.opener || window.opener.closed) {
-          throw new Error(
-            "මුල් Voice Exam App ටැබ් එක විවෘතව තබන්න. " +
-            "ඉන්පසු App එකෙන් Recorder එක නැවත විවෘත කරන්න."
-          );
-        }
+    const cleanup = () => {
+      try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+      script.remove();
+    };
 
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true
-        });
-
-        let options = {};
-
-        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-          options.mimeType = "audio/webm;codecs=opus";
-        } else if (MediaRecorder.isTypeSupported("audio/webm")) {
-          options.mimeType = "audio/webm";
-        }
-
-        chunks = [];
-        recordedBlob = null;
-        recordedDataUrl = null;
-
-        const preview = document.getElementById("preview");
-        preview.removeAttribute("src");
-        preview.hidden = true;
-
-        document.getElementById("sendBtn").disabled = true;
-
-        recorder = new MediaRecorder(stream, options);
-
-        recorder.ondataavailable = function(event) {
-          if (event.data && event.data.size > 0) {
-            chunks.push(event.data);
-          }
-        };
-
-        recorder.onerror = function() {
-          cleanupStream();
-          recording = false;
-          document.getElementById("startBtn").disabled = false;
-          document.getElementById("stopBtn").disabled = true;
-          status("පටිගත කිරීමේ දෝෂයක් ඇති වුණා.");
-        };
-
-        recorder.onstop = function() {
-          recordedBlob = new Blob(chunks, {
-            type: recorder.mimeType || "audio/webm"
-          });
-
-          cleanupStream();
-          recording = false;
-
-          document.getElementById("startBtn").disabled = false;
-          document.getElementById("stopBtn").disabled = true;
-
-          if (!recordedBlob.size) {
-            status("පටිගත කළ ශ්‍රව්‍යය හිස්. නැවත උත්සාහ කරන්න.");
-            return;
-          }
-
-          if (recordedBlob.size > MAX_BYTES) {
-            recordedBlob = null;
-            status("පටිගත කිරීම 8 MB ඉක්මවයි. කෙටි පිළිතුරක් පටිගත කරන්න.");
-            return;
-          }
-
-          const preview = document.getElementById("preview");
-          preview.src = URL.createObjectURL(recordedBlob);
-          preview.hidden = false;
-
-          document.getElementById("sendBtn").disabled = false;
-
-          status("පටිගත කිරීම අවසන්. අසා බලා මුල් App එකට යවන්න.");
-        };
-
-        recorder.start();
-        recording = true;
-
-        document.getElementById("startBtn").disabled = true;
-        document.getElementById("stopBtn").disabled = false;
-
-        status("පටිගත කරමින්... අවසන් වූ විට Stop ඔබන්න.");
-      } catch (error) {
-        cleanupStream();
-        recording = false;
-        document.getElementById("startBtn").disabled = false;
-        document.getElementById("stopBtn").disabled = true;
-
-        status("දෝෂයක් ඇති වුණා: " + error.message);
-      }
-    }
-
-    function stopRecording() {
-      if (recorder && recorder.state === "recording") {
-        document.getElementById("stopBtn").disabled = true;
-        recorder.stop();
-      }
-    }
-
-    function sendToApp() {
-      if (!recordedBlob || recordedBlob.size > MAX_BYTES) {
-        status("වලංගු පටිගත කිරීමක් නොමැත.");
+    window[callbackName] = result => {
+      settled = true;
+      cleanup();
+      if (!result || !result.success || !result.data) {
+        setStatus('ප්‍රශ්නය ලබාගත නොහැක: ' + (result && result.error ? result.error : 'නොදන්නා දෝෂයක්'));
+        $('instructions').textContent = 'නැවත උත්සාහ කරන්න.';
+        const retry = document.createElement('button');
+        retry.textContent = 'නැවත උත්සාහ කරන්න';
+        retry.type = 'button';
+        retry.onclick = () => { retry.remove(); loadQuestion(number); };
+        $('instructions').appendChild(document.createTextNode(' '));
+        $('instructions').appendChild(retry);
         return;
       }
 
-      if (!window.opener || window.opener.closed) {
-        status("මුල් App එක වසා ඇත. එය නැවත විවෘත කරන්න.");
-        return;
-      }
+      questionAudio.src = result.data;
+      questionAudio.load();
+      show(questionAudio, true);
+      show($('playBtn'), true);
+      $('instructions').textContent = 'පළමුව ප්‍රශ්නය අසා අවසන් වූ පසු පිළිතුර පටිගත කරන්න.';
+      setStatus('ප්‍රශ්නය ' + number + ' සූදානම්.');
+    };
 
-      document.getElementById("sendBtn").disabled = true;
-      status("පිළිතුර මුල් App එකට යවමින්...");
+    script.onerror = () => {
+      if (settled) return;
+      cleanup();
+      setStatus('Apps Script වෙතින් ප්‍රශ්නය ලබාගත නොහැක. URL එක සහ deployment access පරීක්ෂා කරන්න.');
+    };
+    script.src = SCRIPT_URL + '?action=question&number=' + encodeURIComponent(number) +
+      '&callback=' + encodeURIComponent(callbackName) + '&t=' + Date.now();
+    document.body.appendChild(script);
+  }
 
+  $('playBtn').addEventListener('click', async () => {
+    try {
+      questionAudio.currentTime = 0;
+      await questionAudio.play();
+      show($('playBtn'), false);
+      $('instructions').textContent = 'ප්‍රශ්නයට සවන් දෙන්න...';
+      setStatus('ප්‍රශ්නය වාදනය වෙමින් පවතී.');
+    } catch (err) {
+      setStatus('ප්‍රශ්නය වාදනය කළ නොහැක. Audio player එකේ Play ඔබන්න.');
+    }
+  });
+
+  questionAudio.addEventListener('ended', () => {
+    show($('recordBtn'), true);
+    $('instructions').textContent = 'දැන් ඔබේ පිළිතුර පටිගත කරන්න.';
+    setStatus('ප්‍රශ්නය අවසන්. පිළිතුර පටිගත කරන්න.');
+  });
+
+  function chooseRecorderMimeType() {
+    if (!window.MediaRecorder) return '';
+    const options = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus'
+    ];
+    return options.find(type => MediaRecorder.isTypeSupported(type)) || '';
+  }
+
+  $('recordBtn').addEventListener('click', () => {
+    if (!mediaStream) {
+      setStatus('මයික්‍රෆෝනය සම්බන්ධ වී නැහැ. පිටුව නැවත පූරණය කර උත්සාහ කරන්න.');
+      return;
+    }
+    if (!window.MediaRecorder) {
+      setStatus('මෙම Chrome අනුවාදයේ MediaRecorder සහාය නැහැ. Chrome යාවත්කාලීන කරන්න.');
+      return;
+    }
+
+    recordedChunks = [];
+    answerBlob = null;
+    const mimeType = chooseRecorderMimeType();
+
+    try {
+      mediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : undefined);
+    } catch (err) {
+      setStatus('පටිගත කිරීම ආරම්භ කළ නොහැක: ' + err.message);
+      return;
+    }
+
+    mediaRecorder.ondataavailable = event => {
+      if (event.data && event.data.size > 0) recordedChunks.push(event.data);
+    };
+    mediaRecorder.onerror = event => {
+      setStatus('Recording error: ' + (event.error ? event.error.message : 'Unknown error'));
+    };
+    mediaRecorder.onstop = () => {
+      const type = (mediaRecorder && mediaRecorder.mimeType) || mimeType || 'audio/webm';
+      answerBlob = new Blob(recordedChunks, { type });
+      answerPreview.src = URL.createObjectURL(answerBlob);
+      show(answerPreview, true);
+      show($('retryBtn'), true);
+      show($('saveBtn'), true);
+      $('instructions').textContent = 'පිළිතුර අසා බලන්න. නිවැරදි නම් සුරකින්න.';
+      setStatus('පටිගත කිරීම අවසන්. සුරැකීමට පෙර පිළිතුර පරීක්ෂා කරන්න.');
+    };
+
+    mediaRecorder.start();
+    show($('recordBtn'), false);
+    show($('stopBtn'), true);
+    setStatus('පිළිතුර පටිගත වෙමින් පවතී...');
+  });
+
+  $('stopBtn').addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    show($('stopBtn'), false);
+  });
+
+  $('retryBtn').addEventListener('click', () => {
+    answerBlob = null;
+    recordedChunks = [];
+    answerPreview.removeAttribute('src');
+    show(answerPreview, false);
+    show($('retryBtn'), false);
+    show($('saveBtn'), false);
+    show($('recordBtn'), true);
+    setStatus('නැවත පටිගත කිරීමට සූදානම්.');
+  });
+
+  $('saveBtn').addEventListener('click', async () => {
+    if (isSaving || !answerBlob) return;
+    if (answerBlob.size > 5 * 1024 * 1024) {
+      setStatus('පටිගත කිරීම විශාලයි. කෙටි පිළිතුරක් නැවත පටිගත කරන්න (5 MB ට අඩු).');
+      return;
+    }
+
+    isSaving = true;
+    $('saveBtn').disabled = true;
+    $('retryBtn').disabled = true;
+    setStatus('පිළිතුර Google Drive වෙත සුරකිමින්... ඊළඟ ප්‍රශ්නයට යන්නේ සුරැකීම සාර්ථක වූ පසුවයි.');
+
+    try {
+      const dataUrl = await blobToDataUrl(answerBlob);
+      requestToken = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).replace(/[^a-zA-Z0-9_-]/g, '');
+      $('uploadForm').action = SCRIPT_URL;
+      $('requestToken').value = requestToken;
+      $('formName').value = participant.name;
+      $('formAge').value = participant.age;
+      $('formGender').value = participant.gender;
+      $('formParticipantId').value = participantId;
+      $('formQuestionNumber').value = String(questionNumber);
+      $('formDataUrl').value = dataUrl;
+      $('uploadForm').submit();
+    } catch (err) {
+      isSaving = false;
+      $('saveBtn').disabled = false;
+      $('retryBtn').disabled = false;
+      setStatus('පිළිතුර යැවීමට නොහැකි විය: ' + err.message);
+    }
+  });
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Recording could not be read.'));
+      reader.readAsDataURL(blob);
+    });
+  }
 
-      reader.onload = function() {
-        recordedDataUrl = reader.result;
+  window.addEventListener('message', event => {
+    const data = event.data;
+    if (!data || data.type !== 'voiceExamSaveResult' || !data.payload) return;
 
-        try {
-          // මුල් App එක ලැබෙන පණිවිඩයේ origin එක පරීක්ෂා කරයි.
-          window.opener.postMessage({
-            type: "VOICE_ANSWER",
-            dataUrl: recordedDataUrl
-          }, "*");
+    // A random per-upload token prevents unrelated messages from advancing the quiz.
+    if (!requestToken || data.payload.requestToken !== requestToken) return;
 
-          status(
-            "පිළිතුර යැවීමට ඉල්ලීම කළා. " +
-            "දැන් මුල් App ටැබ් එකට ගොස් පිළිතුර ලැබුණු බව තහවුරු කරන්න."
-          );
-        } catch (error) {
-          document.getElementById("sendBtn").disabled = false;
-          status("පිළිතුර යැවීමට නොහැකි වුණා: " + error.message);
-        }
-      };
+    isSaving = false;
+    $('saveBtn').disabled = false;
+    $('retryBtn').disabled = false;
 
-      reader.onerror = function() {
-        document.getElementById("sendBtn").disabled = false;
-        status("ශ්‍රව්‍ය ගොනුව කියවීමට නොහැකි වුණා.");
-      };
-
-      reader.readAsDataURL(recordedBlob);
+    if (!data.payload.success) {
+      setStatus('සුරැකීම අසාර්ථකයි: ' + (data.payload.error || 'නොදන්නා දෝෂයක්') +
+        '\\nපිළිතුර නැවත උත්සාහ කිරීමට Save නැවත ඔබන්න.');
+      return;
     }
 
-    window.addEventListener("beforeunload", cleanupStream);
-  </script>
+    setStatus('ප්‍රශ්නය ' + questionNumber + ' පිළිතුර සාර්ථකව සුරැකුණා.');
+    hideQuestionControls();
+    show(questionAudio, false);
+    answerPreview.removeAttribute('src');
+    answerBlob = null;
+
+    if (questionNumber < 11) {
+      loadQuestion(questionNumber + 1);
+    } else {
+      show(exam, false);
+      show(finished, true);
+      setStatus('ප්‍රශ්න 11ටම පිළිතුරු සුරැකී ඇත.');
+      if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+  });
+})();
+</script>
 </body>
 </html>
